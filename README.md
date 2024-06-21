@@ -1,5 +1,9 @@
 # Welcome to Wordle
 
+## Authors
+- Agustina Disiot - 221025
+- Ivan Monjardin - 239850
+
 Instructions:
 - Try to guess a 5 letter word in 6 tries.
 - You can choose either a Single Player game, where the computer chooses a word randomly, or a Multiplayer game, where someone else chooses a word for you to guess.
