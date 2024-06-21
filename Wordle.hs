@@ -7,21 +7,24 @@ import Data.Time
 import System.Exit (exitSuccess)
 
 -- Define the game State
+data Stats = Stats { 
+  gamesPlayed :: Int,
+  winsGroupedByAttempt :: [(Int, Int)]
+} 
+instance Show Stats where
+  show (Stats { gamesPlayed= games ,winsGroupedByAttempt = wins }) = "Games played: "++ show games ++ "\n" ++ unlines (map showOneStat wins)
+
+showOneStat :: (Int, Int) -> String
+showOneStat (attemptCount, wins) = show attemptCount ++ " " ++ replicate wins '|'  
+
 data GameState = GameState {
   mode :: String,
   wordList :: [String],
   strategy :: Strategy,
   currentWord :: String,
   attemptsLeft :: Int,
-  stats :: Stats,
-  gamesPlayed :: Int
+  stats :: Stats
 }
-
-data Stats = Stats { 
-  winsGroupedByAttemptCount :: [(Int, Int)]
-} deriving (Show)
-
-
 
 type Strategy = [String] -> String
 
@@ -33,26 +36,8 @@ data ResultStep =  X | O | I
 
 type Step = [ResultStep]
 
--- Function to read a file and store the words in the game state
-readWordsFromFile :: FilePath -> StateT GameState IO ()
-readWordsFromFile filePath = do
-    content <- liftIO $ readFile filePath
-    let wordsList = lines content
-    modify (\st -> st { wordList = wordsList })
-
-loadWords :: FilePath -> StateT GameState IO ()
-loadWords filePath = do
-    readWordsFromFile filePath
-
--- Function to check if the user wants to exit the game, by typing "exit" at any time
-checkExit :: String -> IO String
-checkExit input
-  | lowerCase input == "exit" = do
-      putStrLn "Exiting the game. Goodbye!"
-      exitSuccess
-  | otherwise = return input
-
 -- STRATEGIES
+
 -- Random strategy, chooses a random word from the list (Single player)
 randomInt :: Integer -> IO Integer
 randomInt n =
@@ -86,6 +71,10 @@ humanStrat' = do
       putStrLn "Player 2, Guess the word!"
       return wrd
 
+------------------------------------------------------------------------------------------------------------------------
+
+-- GAME
+
 -- play starts the game, type "play" to start
 play :: IO()
 play = do
@@ -105,7 +94,7 @@ play = do
     putStrLn "Type \ESC[35m's' \ESC[0mfor Single Player, \ESC[92m'm' \ESC[0mfor Multiplayer, or any to quit."
     strat <- getLine >>= checkExit
     if strat == "m" then do
-      let initialState = GameState { mode = "e", wordList = [], strategy = humanStrat, currentWord = "", attemptsLeft = 6, gamesPlayed = 0, stats = Stats { winsGroupedByAttemptCount = [] } }
+      let initialState = GameState { mode = "e", wordList = [], strategy = humanStrat, currentWord = "", attemptsLeft = 6, stats = Stats {  gamesPlayed = 0, winsGroupedByAttempt = [(1,0), (2,0) ,(3,0) ,(4,0) ,(5,0) ,(6,0)] }}
       evalStateT startPlay initialState
     else if strat == "s" then do
       putStrLn "Now chose if you want to play with english or spanish words. Type \ESC[34m'e' \ESC[0mfor english, \ESC[93m's' \ESC[0mfor spanish, or any to quit."
@@ -113,12 +102,12 @@ play = do
       putStrLn "Now chose if you want to play easy or hard mode. In hard mode you can only make guesses from valid words on the list. Type \ESC[93m'h' \ESC[0mfor hard, or any for easy."
       mode <- getLine >>= checkExit
       if lang == "e" then do
-        let initialState = GameState { mode = mode , wordList = [], strategy = randomStrat, currentWord = "", attemptsLeft = 6 , gamesPlayed = 0, stats = Stats { winsGroupedByAttemptCount = []}}
-        finalState <- execStateT (loadWords "words.txt") initialState
+        let initialState = GameState { mode = mode , wordList = [], strategy = randomStrat, currentWord = "", attemptsLeft = 6 , stats = Stats {  gamesPlayed = 0, winsGroupedByAttempt = [(1,0), (2,0) ,(3,0) ,(4,0) ,(5,0) ,(6,0)] }}
+        finalState <- execStateT (readWordsFromFile "words.txt") initialState
         evalStateT startPlay finalState
       else if lang == "s" then do
-        let initialState = GameState { mode = mode , wordList = [], strategy = randomStrat, currentWord = "", attemptsLeft = 6 , gamesPlayed = 0, stats = Stats { winsGroupedByAttemptCount = []}}
-        finalState <- execStateT (loadWords "palabras.txt") initialState
+        let initialState = GameState { mode = mode , wordList = [], strategy = randomStrat, currentWord = "", attemptsLeft = 6 , stats = Stats {  gamesPlayed = 0, winsGroupedByAttempt = [(1,0), (2,0) ,(3,0) ,(4,0) ,(5,0) ,(6,0)] }}
+        finalState <- execStateT (readWordsFromFile "palabras.txt") initialState
         evalStateT startPlay finalState
       else putStrLn "Goodbye!"
     else putStrLn "Goodbye!"
@@ -128,22 +117,28 @@ startPlay :: StateT GameState IO ()
 startPlay = do
   gameState <- get
   let wrd = strategy gameState (wordList gameState)
-  modify (\st -> st { currentWord = wrd })
+  modify (\st -> st { currentWord = wrd, attemptsLeft = 6 })
   play'
+  updatedGameState <- get 
   liftIO $ do
     putStrLn "Do you want to play again with the same settings? Type 'y' for yes, anything else for no."
     cont <- getLine >>= checkExit
-    if cont == "y" then evalStateT startPlay gameState
-    else play
+    if cont == "y" 
+      then evalStateT startPlay updatedGameState 
+      else play
 
 -- The main loop of the game in the StateT monad
 play' :: StateT GameState IO ()
 play' = do
   gameState <- get
   let ac = attemptsLeft gameState
-  if ac == 0 then liftIO $ do
-    putStrLn "\ESC[91mYou Lose!\ESC[0m"
-    putStrLn ("The word was: \ESC[91m" ++ currentWord gameState ++ "\ESC[0m")
+  if ac == 0 then do
+    modify (\st -> st { stats = Stats { gamesPlayed = gamesPlayed (stats st) + 1, winsGroupedByAttempt = winsGroupedByAttempt (stats st) } })
+    updatedGameState <- get
+    liftIO $ do
+      putStrLn "\ESC[91mYou Lose!\ESC[0m"
+      putStrLn ("The word was: \ESC[91m" ++ currentWord gameState ++ "\ESC[0m")
+      print (stats updatedGameState)
   else do
     liftIO $ do
       putStrLn ("Guesses left: " ++ show ac)
@@ -156,19 +151,21 @@ play' = do
       liftIO $ putStrLn "\ESC[93mThe word is not on word list.\ESC[0m"
       play'
     else if lowerCase guess == lowerCase (currentWord gameState) then do
-      --let updatedStats = Stats { gamesPlayed = gamesPlayed (stats gameState) + 1, winsGroupedByAttemptCount =  updateWinsGroupedByAttemptCount (winsGroupedByAttemptCount (stats gameState)) (6 - attemptsLeft gameState) }
-      --modify (\st -> st { stats = updatedStats })
-      modify (\st -> st { gamesPlayed = gamesPlayed st + 1 })
+      modify (\st -> st { stats = Stats { gamesPlayed = gamesPlayed (stats st) + 1, winsGroupedByAttempt = updateWinsGroupedByAttempt (winsGroupedByAttempt (stats st)) (7-ac) }})
+      updatedGameState <- get
       liftIO $ do
         putStrLn "\ESC[92mYou Win!\ESC[0m"
         putStrLn ("The word was: \ESC[92m" ++ currentWord gameState ++ "\ESC[0m")
-        putStrLn ("Games played: " ++ show (gamesPlayed gameState))
-        -- putStrLn ("Wins grouped by attempt count: " ++ show (winsGroupedByAttemptCount updatedStats))
+        print (stats updatedGameState)
     else do
       let res = paintWord guess (step guess (currentWord gameState) (currentWord gameState))
       liftIO $ putStrLn res
       modify (\st -> st { attemptsLeft = ac - 1 })
       play'
+
+------------------------------------------------------------------------------------------------------------------------
+
+--HELPERS
 
 -- lowerCase converts a word to lowercase, making the guesses case insensitive
 lowerCase :: String -> String
@@ -193,10 +190,21 @@ paintWord (w:ws) (X:xs) = "\ESC[91m" ++ [w] ++ paintWord ws xs
 paintWord (w:ws) (I:xs) = "\ESC[93m" ++ [w] ++ paintWord ws xs
 paintWord (w:ws) (O:xs) = "\ESC[92m" ++ [w] ++ paintWord ws xs
 
---TODO
--- Stats: number of games played, number of wins, number of losses, in how many guesses State monad
+-- [Stats helper] updateWinsGroupedByAttempt updates the stats of the game
+updateWinsGroupedByAttempt :: [(Int, Int)] -> Int -> [(Int, Int)]
+updateWinsGroupedByAttempt xs n = map (\(a,b) -> if a == n then (a,b+1) else (a,b)) xs
 
-updateWinsGroupedByAttemptCount :: [(Int, Int)] -> Int -> [(Int, Int)]
-updateWinsGroupedByAttemptCount xs n = case lookup n xs of
-  Just x -> (n, x + 1) : filter (\(a, _) -> a /= n) xs
-  Nothing -> (n, 1) : xs
+-- [Words helper] Function to read a file and store the words in the game state
+readWordsFromFile :: FilePath -> StateT GameState IO ()
+readWordsFromFile filePath = do
+    content <- liftIO $ readFile filePath
+    let wordsList = lines content
+    modify (\st -> st { wordList = wordsList })
+
+-- Function to check if the user wants to exit the game, by typing "exit" at any time
+checkExit :: String -> IO String
+checkExit input
+  | lowerCase input == "exit" = do
+      putStrLn "Exiting the game. Goodbye!"
+      exitSuccess
+  | otherwise = return input
