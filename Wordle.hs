@@ -116,7 +116,7 @@ play = do
 startPlay :: StateT GameState IO ()
 startPlay = do
   gameState <- get
-  let wrd = strategy gameState (wordList gameState)
+  let !wrd = strategy gameState (wordList gameState)
   modify (\st -> st { currentWord = wrd, attemptsLeft = 6 })
   play'
   updatedGameState <- get 
