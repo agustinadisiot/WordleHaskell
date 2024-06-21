@@ -12,8 +12,16 @@ data GameState = GameState {
   wordList :: [String],
   strategy :: Strategy,
   currentWord :: String,
-  attemptsLeft :: Int
+  attemptsLeft :: Int,
+  stats :: Stats,
+  gamesPlayed :: Int
 }
+
+data Stats = Stats { 
+  winsGroupedByAttemptCount :: [(Int, Int)]
+} deriving (Show)
+
+
 
 type Strategy = [String] -> String
 
@@ -97,7 +105,7 @@ play = do
     putStrLn "Type \ESC[35m's' \ESC[0mfor Single Player, \ESC[92m'm' \ESC[0mfor Multiplayer, or any to quit."
     strat <- getLine >>= checkExit
     if strat == "m" then do
-      let initialState = GameState { mode = "e", wordList = [], strategy = humanStrat, currentWord = "", attemptsLeft = 6 }
+      let initialState = GameState { mode = "e", wordList = [], strategy = humanStrat, currentWord = "", attemptsLeft = 6, gamesPlayed = 0, stats = Stats { winsGroupedByAttemptCount = [] } }
       evalStateT startPlay initialState
     else if strat == "s" then do
       putStrLn "Now chose if you want to play with english or spanish words. Type \ESC[34m'e' \ESC[0mfor english, \ESC[93m's' \ESC[0mfor spanish, or any to quit."
@@ -105,11 +113,11 @@ play = do
       putStrLn "Now chose if you want to play easy or hard mode. In hard mode you can only make guesses from valid words on the list. Type \ESC[93m'h' \ESC[0mfor hard, or any for easy."
       mode <- getLine >>= checkExit
       if lang == "e" then do
-        let initialState = GameState { mode = mode , wordList = [], strategy = randomStrat, currentWord = "", attemptsLeft = 6 }
+        let initialState = GameState { mode = mode , wordList = [], strategy = randomStrat, currentWord = "", attemptsLeft = 6 , gamesPlayed = 0, stats = Stats { winsGroupedByAttemptCount = []}}
         finalState <- execStateT (loadWords "words.txt") initialState
         evalStateT startPlay finalState
       else if lang == "s" then do
-        let initialState = GameState { mode = mode , wordList = [], strategy = randomStrat, currentWord = "", attemptsLeft = 6 }
+        let initialState = GameState { mode = mode , wordList = [], strategy = randomStrat, currentWord = "", attemptsLeft = 6 , gamesPlayed = 0, stats = Stats { winsGroupedByAttemptCount = []}}
         finalState <- execStateT (loadWords "palabras.txt") initialState
         evalStateT startPlay finalState
       else putStrLn "Goodbye!"
@@ -119,7 +127,7 @@ play = do
 startPlay :: StateT GameState IO ()
 startPlay = do
   gameState <- get
-  let !wrd = strategy gameState (wordList gameState)
+  let wrd = strategy gameState (wordList gameState)
   modify (\st -> st { currentWord = wrd })
   play'
   liftIO $ do
@@ -148,9 +156,14 @@ play' = do
       liftIO $ putStrLn "\ESC[93mThe word is not on word list.\ESC[0m"
       play'
     else if lowerCase guess == lowerCase (currentWord gameState) then do
+      --let updatedStats = Stats { gamesPlayed = gamesPlayed (stats gameState) + 1, winsGroupedByAttemptCount =  updateWinsGroupedByAttemptCount (winsGroupedByAttemptCount (stats gameState)) (6 - attemptsLeft gameState) }
+      --modify (\st -> st { stats = updatedStats })
+      modify (\st -> st { gamesPlayed = gamesPlayed st + 1 })
       liftIO $ do
         putStrLn "\ESC[92mYou Win!\ESC[0m"
         putStrLn ("The word was: \ESC[92m" ++ currentWord gameState ++ "\ESC[0m")
+        putStrLn ("Games played: " ++ show (gamesPlayed gameState))
+        -- putStrLn ("Wins grouped by attempt count: " ++ show (winsGroupedByAttemptCount updatedStats))
     else do
       let res = paintWord guess (step guess (currentWord gameState) (currentWord gameState))
       liftIO $ putStrLn res
@@ -182,3 +195,8 @@ paintWord (w:ws) (O:xs) = "\ESC[92m" ++ [w] ++ paintWord ws xs
 
 --TODO
 -- Stats: number of games played, number of wins, number of losses, in how many guesses State monad
+
+updateWinsGroupedByAttemptCount :: [(Int, Int)] -> Int -> [(Int, Int)]
+updateWinsGroupedByAttemptCount xs n = case lookup n xs of
+  Just x -> (n, x + 1) : filter (\(a, _) -> a /= n) xs
+  Nothing -> (n, 1) : xs
