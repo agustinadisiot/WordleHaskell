@@ -23,8 +23,13 @@ Instructions:
 - `ghc main.hs`
 - `./main` or run .exe file
 
+**Run module locally:**
+- `ghci main.hs`
+- `ghci> main`
 
-**Important!!** IO backspace only works in compiled code, not in ghci
+--------
+
+**Important!!** IO backspace might only works in compiled code, not in ghci
 
 Information about implamentation with State Monad:
 - StateT Monad Transformer vs State:

@@ -78,42 +78,41 @@ humanStrat' = do
 -- GAME
 
 -- play starts the game, type "play" to start
-play :: IO()
+play :: StateT GameState IO ()
 play = do
-    let initialState = GameState { mode = "" , wordList = [], strategy = undefined, currentWord = "", attemptsLeft = 6 , stats = Stats {  gamesPlayed = 0, winsGroupedByAttempt = [(1,0), (2,0) ,(3,0) ,(4,0) ,(5,0) ,(6,0)] }}
-    putStrLn "\ESC[37m .----------------.  .----------------.  .----------------.  .----------------.  .----------------.  .----------------. "
-    putStrLn "\ESC[37m| .--------------. || .--------------. || .--------------. || .--------------. || .--------------. || .--------------. |"
-    putStrLn "\ESC[37m| |\ESC[91m _____  _____ \ESC[37m| || |\ESC[35m     ____     \ESC[37m| || |\ESC[34m  _______     \ESC[37m| || |\ESC[36m  ________    \ESC[37m| || |\ESC[92m   _____      \ESC[37m| || |\ESC[93m  _________   \ESC[37m| |"
-    putStrLn "\ESC[37m| |\ESC[91m|_   _||_   _|\ESC[37m| || | \ESC[35m  .'    `.   \ESC[37m| || |\ESC[34m |_   __ \\    \ESC[37m| || |\ESC[36m |_   ___ `.  \ESC[37m| || |\ESC[92m  |_   _|     \ESC[37m| || |\ESC[93m |_   ___  |  \ESC[37m| |"
-    putStrLn "\ESC[37m| |\ESC[91m  | | /\\ | | \ESC[37m | || |\ESC[35m  /  .--.  \\\ESC[37m  | || |\ESC[34m   | |__) |   \ESC[37m| || |\ESC[36m   | |   `. \\ \ESC[37m| || |\ESC[92m    | |       \ESC[37m| || |\ESC[93m   | |_  \\_|  \ESC[37m| |"
-    putStrLn "\ESC[37m| |\ESC[91m  | |/  \\| | \ESC[37m | || |\ESC[35m  | |    | |  \ESC[37m| || |\ESC[34m   |  __ /    \ESC[37m| || |\ESC[36m   | |    | | \ESC[37m| || |\ESC[92m    | |   _   \ESC[37m| || |\ESC[93m   |  _|  _   \ESC[37m| |"
-    putStrLn "\ESC[37m| |\ESC[91m  |   /\\   |  \ESC[37m| || | \ESC[35m \\  `--'  /  \ESC[37m| || |\ESC[34m  _| |  \\ \\_  \ESC[37m| || |\ESC[36m  _| |___.' / \ESC[37m| || |\ESC[92m   _| |__/ |\ESC[37m  | || |\ESC[93m  _| |___/ |  \ESC[37m| |"
-    putStrLn "\ESC[37m| |\ESC[91m  |__/  \\__| \ESC[37m | || |\ESC[35m   `.____.'   \ESC[37m| || |\ESC[34m |____| |___| \ESC[37m| || |\ESC[36m |________.'  \ESC[37m| || |\ESC[92m  |________|  \ESC[37m| || |\ESC[93m |_________|  \ESC[37m| |"
-    putStrLn "\ESC[37m| |              | || |              | || |              | || |              | || |              | || |              | |"
-    putStrLn "\ESC[37m| '--------------' || '--------------' || '--------------' || '--------------' || '--------------' || '--------------' |"
-    putStrLn "\ESC[37m '----------------'  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' \ESC[0m"
-    putStrLn "The computer will choose a word from the list, and you have to guess it in 6 tries."
-    putStrLn "You can choose either a \ESC[35mSingle Player \ESC[0mgame, where the computer chooses a word randomly, or a \ESC[92mMultiplayer \ESC[0mgame, where someone else chooses a word for you to guess."
-    putStrLn "Type \ESC[35m's' \ESC[0mfor Single Player, \ESC[92m'm' \ESC[0mfor Multiplayer, or any to quit."
-    strat <- getLine >>= checkExit
+    initialState <- get
+    liftIO $ do
+      putStrLn "\ESC[37m .----------------.  .----------------.  .----------------.  .----------------.  .----------------.  .----------------. "
+      putStrLn "\ESC[37m| .--------------. || .--------------. || .--------------. || .--------------. || .--------------. || .--------------. |"
+      putStrLn "\ESC[37m| |\ESC[91m _____  _____ \ESC[37m| || |\ESC[35m     ____     \ESC[37m| || |\ESC[34m  _______     \ESC[37m| || |\ESC[36m  ________    \ESC[37m| || |\ESC[92m   _____      \ESC[37m| || |\ESC[93m  _________   \ESC[37m| |"
+      putStrLn "\ESC[37m| |\ESC[91m|_   _||_   _|\ESC[37m| || | \ESC[35m  .'    `.   \ESC[37m| || |\ESC[34m |_   __ \\    \ESC[37m| || |\ESC[36m |_   ___ `.  \ESC[37m| || |\ESC[92m  |_   _|     \ESC[37m| || |\ESC[93m |_   ___  |  \ESC[37m| |"
+      putStrLn "\ESC[37m| |\ESC[91m  | | /\\ | | \ESC[37m | || |\ESC[35m  /  .--.  \\\ESC[37m  | || |\ESC[34m   | |__) |   \ESC[37m| || |\ESC[36m   | |   `. \\ \ESC[37m| || |\ESC[92m    | |       \ESC[37m| || |\ESC[93m   | |_  \\_|  \ESC[37m| |"
+      putStrLn "\ESC[37m| |\ESC[91m  | |/  \\| | \ESC[37m | || |\ESC[35m  | |    | |  \ESC[37m| || |\ESC[34m   |  __ /    \ESC[37m| || |\ESC[36m   | |    | | \ESC[37m| || |\ESC[92m    | |   _   \ESC[37m| || |\ESC[93m   |  _|  _   \ESC[37m| |"
+      putStrLn "\ESC[37m| |\ESC[91m  |   /\\   |  \ESC[37m| || | \ESC[35m \\  `--'  /  \ESC[37m| || |\ESC[34m  _| |  \\ \\_  \ESC[37m| || |\ESC[36m  _| |___.' / \ESC[37m| || |\ESC[92m   _| |__/ |\ESC[37m  | || |\ESC[93m  _| |___/ |  \ESC[37m| |"
+      putStrLn "\ESC[37m| |\ESC[91m  |__/  \\__| \ESC[37m | || |\ESC[35m   `.____.'   \ESC[37m| || |\ESC[34m |____| |___| \ESC[37m| || |\ESC[36m |________.'  \ESC[37m| || |\ESC[92m  |________|  \ESC[37m| || |\ESC[93m |_________|  \ESC[37m| |"
+      putStrLn "\ESC[37m| |              | || |              | || |              | || |              | || |              | || |              | |"
+      putStrLn "\ESC[37m| '--------------' || '--------------' || '--------------' || '--------------' || '--------------' || '--------------' |"
+      putStrLn "\ESC[37m '----------------'  '----------------'  '----------------'  '----------------'  '----------------'  '----------------' \ESC[0m"
+      putStrLn "The computer will choose a word from the list, and you have to guess it in 6 tries."
+      putStrLn "You can choose either a \ESC[35mSingle Player \ESC[0mgame, where the computer chooses a word randomly, or a \ESC[92mMultiplayer \ESC[0mgame, where someone else chooses a word for you to guess."
+      putStrLn "Type \ESC[35m's' \ESC[0mfor Single Player, \ESC[92m'm' \ESC[0mfor Multiplayer, or any to quit."
+    strat <- liftIO $ getLine >>= checkExit
     if strat == "m" then do
-      finalState <- execStateT (modifyState "e" humanStrat) initialState
-      evalStateT startPlay finalState
+      modify (\st -> st { mode = "e", strategy = humanStrat })
+      startPlay 
     else if strat == "s" then do
-      putStrLn "Now chose if you want to play with english or spanish words. Type \ESC[34m'e' \ESC[0mfor english, \ESC[93m's' \ESC[0mfor spanish, or any to quit."
-      lang <- getLine >>= checkExit
-      putStrLn "Now chose if you want to play easy or hard mode. In hard mode you can only make guesses from valid words on the list. Type \ESC[93m'h' \ESC[0mfor hard, or any for easy."
-      mode <- getLine >>= checkExit
+      liftIO $ do putStrLn "Now chose if you want to play with english or spanish words. Type \ESC[34m'e' \ESC[0mfor english, \ESC[93m's' \ESC[0mfor spanish, or any to quit."
+      lang <- liftIO $ getLine >>= checkExit
+      liftIO $ do putStrLn "Now chose if you want to play easy or hard mode. In hard mode you can only make guesses from valid words on the list. Type \ESC[93m'h' \ESC[0mfor hard, or any for easy."
+      mode <- liftIO $ getLine >>= checkExit
       if lang == "e" then do
-        updatedState <- execStateT (modifyState mode randomStrat) initialState
-        finalState <- execStateT (readWordsFromFile "words.txt") updatedState
-        evalStateT startPlay finalState
+        modify (\st -> st { mode = mode, wordList = unsafePerformIO (readWordsFromFile "words.txt"), strategy = randomStrat })
+        startPlay
       else if lang == "s" then do
-        updatedState <- execStateT (modifyState mode randomStrat) initialState
-        finalState <- execStateT (readWordsFromFile "palabras.txt") updatedState
-        evalStateT startPlay finalState
-      else putStrLn "Goodbye!"
-    else putStrLn "Goodbye!"
+        modify (\st -> st { mode = mode, wordList = unsafePerformIO (readWordsFromFile "palabras.txt"), strategy = randomStrat })
+        startPlay
+      else liftIO $ do putStrLn "Goodbye!"
+    else liftIO $ do putStrLn "Goodbye!"
 
 -- The main game function to start playing
 startPlay :: StateT GameState IO ()
@@ -128,7 +127,7 @@ startPlay = do
     cont <- getLine >>= checkExit
     if cont == "y" 
       then evalStateT startPlay updatedGameState 
-      else play
+      else evalStateT play updatedGameState
 
 -- The main loop of the game in the StateT monad
 play' :: StateT GameState IO ()
@@ -198,16 +197,11 @@ updateWinsGroupedByAttempt :: [(Int, Int)] -> Int -> [(Int, Int)]
 updateWinsGroupedByAttempt xs n = map (\(a,b) -> if a == n then (a,b+1) else (a,b)) xs
 
 -- [State helper] Function to read a file and store the words in the game state
-readWordsFromFile :: FilePath -> StateT GameState IO ()
+readWordsFromFile :: FilePath -> IO [String]
 readWordsFromFile filePath = do
     content <- liftIO $ readFile filePath
     let wordsList = lines content
-    modify (\st -> st { wordList = wordsList })
-
--- [State helper] Function to modify the game mode and strategy
-modifyState :: String -> Strategy -> StateT GameState IO ()
-modifyState m s = do
-    modify (\st -> st { mode = m, strategy = s })
+    return wordsList
 
 -- Function to check if the user wants to exit the game, by typing "exit" at any time
 checkExit :: String -> IO String

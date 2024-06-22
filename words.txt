@@ -236,7 +236,9 @@ gloom
 hasty
 slant
 stark
+stare
 flock
+pinky
 prowl
 sheen
 swish
