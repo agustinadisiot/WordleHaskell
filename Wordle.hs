@@ -7,6 +7,15 @@ import Data.Time
 import System.Exit (exitSuccess)
 
 -- Define the game State
+data GameState = GameState {
+  mode :: String,
+  wordList :: [String],
+  strategy :: Strategy,
+  currentWord :: String,
+  attemptsLeft :: Int,
+  stats :: Stats
+}
+
 data Stats = Stats { 
   gamesPlayed :: Int,
   winsGroupedByAttempt :: [(Int, Int)]
@@ -17,15 +26,6 @@ instance Show Stats where
 showOneStat :: (Int, Int) -> String
 showOneStat (attemptCount, wins) = show attemptCount ++ " " ++ replicate wins '|'  
 
-data GameState = GameState {
-  mode :: String,
-  wordList :: [String],
-  strategy :: Strategy,
-  currentWord :: String,
-  attemptsLeft :: Int,
-  stats :: Stats
-}
-
 type Strategy = [String] -> String
 
 data ResultStep =  X | O | I
@@ -35,6 +35,8 @@ data ResultStep =  X | O | I
 -- O means the letter is in the word to guess, and in the same position
 
 type Step = [ResultStep]
+
+------------------------------------------------------------------------------------------------------------------------
 
 -- STRATEGIES
 
@@ -78,6 +80,7 @@ humanStrat' = do
 -- play starts the game, type "play" to start
 play :: IO()
 play = do
+    let initialState = GameState { mode = "" , wordList = [], strategy = undefined, currentWord = "", attemptsLeft = 6 , stats = Stats {  gamesPlayed = 0, winsGroupedByAttempt = [(1,0), (2,0) ,(3,0) ,(4,0) ,(5,0) ,(6,0)] }}
     putStrLn "\ESC[37m .----------------.  .----------------.  .----------------.  .----------------.  .----------------.  .----------------. "
     putStrLn "\ESC[37m| .--------------. || .--------------. || .--------------. || .--------------. || .--------------. || .--------------. |"
     putStrLn "\ESC[37m| |\ESC[91m _____  _____ \ESC[37m| || |\ESC[35m     ____     \ESC[37m| || |\ESC[34m  _______     \ESC[37m| || |\ESC[36m  ________    \ESC[37m| || |\ESC[92m   _____      \ESC[37m| || |\ESC[93m  _________   \ESC[37m| |"
@@ -94,20 +97,20 @@ play = do
     putStrLn "Type \ESC[35m's' \ESC[0mfor Single Player, \ESC[92m'm' \ESC[0mfor Multiplayer, or any to quit."
     strat <- getLine >>= checkExit
     if strat == "m" then do
-      let initialState = GameState { mode = "e", wordList = [], strategy = humanStrat, currentWord = "", attemptsLeft = 6, stats = Stats {  gamesPlayed = 0, winsGroupedByAttempt = [(1,0), (2,0) ,(3,0) ,(4,0) ,(5,0) ,(6,0)] }}
-      evalStateT startPlay initialState
+      finalState <- execStateT (modifyState "e" humanStrat) initialState
+      evalStateT startPlay finalState
     else if strat == "s" then do
       putStrLn "Now chose if you want to play with english or spanish words. Type \ESC[34m'e' \ESC[0mfor english, \ESC[93m's' \ESC[0mfor spanish, or any to quit."
       lang <- getLine >>= checkExit
       putStrLn "Now chose if you want to play easy or hard mode. In hard mode you can only make guesses from valid words on the list. Type \ESC[93m'h' \ESC[0mfor hard, or any for easy."
       mode <- getLine >>= checkExit
       if lang == "e" then do
-        let initialState = GameState { mode = mode , wordList = [], strategy = randomStrat, currentWord = "", attemptsLeft = 6 , stats = Stats {  gamesPlayed = 0, winsGroupedByAttempt = [(1,0), (2,0) ,(3,0) ,(4,0) ,(5,0) ,(6,0)] }}
-        finalState <- execStateT (readWordsFromFile "words.txt") initialState
+        updatedState <- execStateT (modifyState mode randomStrat) initialState
+        finalState <- execStateT (readWordsFromFile "words.txt") updatedState
         evalStateT startPlay finalState
       else if lang == "s" then do
-        let initialState = GameState { mode = mode , wordList = [], strategy = randomStrat, currentWord = "", attemptsLeft = 6 , stats = Stats {  gamesPlayed = 0, winsGroupedByAttempt = [(1,0), (2,0) ,(3,0) ,(4,0) ,(5,0) ,(6,0)] }}
-        finalState <- execStateT (readWordsFromFile "palabras.txt") initialState
+        updatedState <- execStateT (modifyState mode randomStrat) initialState
+        finalState <- execStateT (readWordsFromFile "palabras.txt") updatedState
         evalStateT startPlay finalState
       else putStrLn "Goodbye!"
     else putStrLn "Goodbye!"
@@ -165,7 +168,7 @@ play' = do
 
 ------------------------------------------------------------------------------------------------------------------------
 
---HELPERS
+-- HELPERS
 
 -- lowerCase converts a word to lowercase, making the guesses case insensitive
 lowerCase :: String -> String
@@ -194,12 +197,17 @@ paintWord (w:ws) (O:xs) = "\ESC[92m" ++ [w] ++ paintWord ws xs
 updateWinsGroupedByAttempt :: [(Int, Int)] -> Int -> [(Int, Int)]
 updateWinsGroupedByAttempt xs n = map (\(a,b) -> if a == n then (a,b+1) else (a,b)) xs
 
--- [Words helper] Function to read a file and store the words in the game state
+-- [State helper] Function to read a file and store the words in the game state
 readWordsFromFile :: FilePath -> StateT GameState IO ()
 readWordsFromFile filePath = do
     content <- liftIO $ readFile filePath
     let wordsList = lines content
     modify (\st -> st { wordList = wordsList })
+
+-- [State helper] Function to modify the game mode and strategy
+modifyState :: String -> Strategy -> StateT GameState IO ()
+modifyState m s = do
+    modify (\st -> st { mode = m, strategy = s })
 
 -- Function to check if the user wants to exit the game, by typing "exit" at any time
 checkExit :: String -> IO String
